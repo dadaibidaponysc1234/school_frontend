@@ -37,7 +37,7 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             
-            axios.post('http://127.0.0.1:8000/api/login/', { username, password })
+            axios.post('http://schoolapp-algorithmxcomp.pythonanywhere.com/api/login/', { username, password })
                 .then(response => {
                     const userData = response.data;
                     localStorage.setItem('accessToken', userData.access);
