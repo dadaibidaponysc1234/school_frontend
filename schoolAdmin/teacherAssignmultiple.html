@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Assignment</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <script>
+        console.log("Teacher Assignment Loaded!");
+
+        const API_BASE_URL = "http://127.0.0.1:8000/api/";
+        const AUTH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzMzcyODAzLCJpYXQiOjE3NDMyODY0MDMsImp0aSI6Ijk1ZGZlNjdmMDRmMDRjYjFhOGE4MTFhOTU4ZWE0ODNmIiwidXNlcl9pZCI6OX0.R5xFrektdg19ooiE01vXQNrREh7z5iobF1lGpgBeM5U"; // Replace with a valid token
+
+        async function fetchTeachersDepartmentsClasses() {
+            try {
+                showLoader();
+                const headers = { "Authorization": `Bearer ${AUTH_TOKEN}`, "Content-Type": "application/json" };
+
+                const [teachersResponse, departmentsResponse, classesResponse] = await Promise.all([
+                    fetch(`${API_BASE_URL}teachers/list/`, { headers }),
+                    fetch(`${API_BASE_URL}departments/`, { headers }),
+                    fetch(`${API_BASE_URL}classes/`, { headers })
+                ]);
+
+                if (!teachersResponse.ok || !departmentsResponse.ok || !classesResponse.ok) {
+                    showAlert("Error fetching data! Check authentication.", "danger");
+                    return;
+                }
+
+                const teachers = await teachersResponse.json();
+                const departments = await departmentsResponse.json();
+                const classes = await classesResponse.json();
+
+                populateSelectOptions("teacherSelect", teachers, "teacher_id", "first_name", "last_name");
+                populateSelectOptions("departmentSelect", departments, "department_id", "name");
+                populateSelectOptions("classSelect", classes, "class_id", "arm_name");
+
+                hideLoader();
+            } catch (error) {
+                showAlert("Error fetching teachers, departments, and classes.", "danger");
+                console.error(error);
+            }
+        }
+
+        async function fetchSubjectsByDepartment() {
+            const departmentId = document.getElementById("departmentSelect").value;
+
+            if (!departmentId) {
+                document.getElementById("subjectSelect").innerHTML = "<option value=''>Select Department First</option>";
+                return;
+            }
+
+            try {
+                showLoader();
+                const headers = { "Authorization": `Bearer ${AUTH_TOKEN}`, "Content-Type": "application/json" };
+                const response = await fetch(`${API_BASE_URL}subject_classes/?department=${departmentId}`, { headers });
+
+                if (!response.ok) {
+                    showAlert("Error fetching subjects.", "danger");
+                    return;
+                }
+
+                const subjects = await response.json();
+                populateSelectOptions("subjectSelect", subjects, "subject_class_id", "subject_name", true);
+                hideLoader();
+            } catch (error) {
+                showAlert("Error fetching subjects.", "danger");
+                console.error(error);
+            }
+        }
+
+        function populateSelectOptions(elementId, data, idKey, nameKey, multiple = false) {
+            const selectElement = document.getElementById(elementId);
+            selectElement.innerHTML = multiple ? "" : "<option value=''>Select</option>";
+
+            data.forEach(item => {
+                const option = document.createElement("option");
+                option.value = item[idKey];
+                option.textContent = item[nameKey];
+                selectElement.appendChild(option);
+            });
+        }
+
+        async function assignTeacherToSubjects() {
+            const teacherId = document.getElementById("teacherSelect").value;
+            const subjectId = document.getElementById("subjectSelect").value;
+            const classSelect = document.getElementById("classSelect");
+            const selectedClasses = Array.from(classSelect.selectedOptions).map(option => option.value);
+
+            if (!teacherId || !subjectId || selectedClasses.length === 0) {
+                showAlert("Please select a teacher, subject, and at least one class.", "warning");
+            return;
+            }
+
+        showLoader();
+
+        try {
+        // Loop through each selected class and send the assignment request
+            for (const classId of selectedClasses) {
+                const assignment = {
+                    teacher: teacherId,
+                    subject: subjectId,
+                    class_assigned: classId
+                };
+
+                console.log("Payload being sent:", JSON.stringify(assignment, null, 2)); // Debugging
+
+            const response = await fetch(`${API_BASE_URL}teacher_assignments/`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${AUTH_TOKEN}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(assignment) // ✅ Single object (but multiple requests)
+            });
+
+            const result = await response.json();
+            console.log("Response from API:", result); // Debugging
+
+            if (!response.ok) {
+                showAlert(`Error: ${result.errors || "Assignment failed"}`, "danger");
+                return; // Stop execution if one request fails
+            }
+        }
+
+        showAlert("Teacher assigned to all selected classes successfully!", "success");
+        fetchTeacherAssignments(); // Refresh the assignment list
+
+        } catch (error) {
+            showAlert("Error assigning teacher.", "danger");
+            console.error(error);
+        } finally {
+            hideLoader();
+        }
+    }
+
+
+        async function fetchTeacherAssignments() {
+            try {
+                showLoader();
+                const headers = { "Authorization": `Bearer ${AUTH_TOKEN}` };
+                const response = await fetch(`${API_BASE_URL}teacher_assignments/`, { headers });
+
+                if (!response.ok) {
+                    showAlert("Error fetching assignments.", "danger");
+                    return;
+                }
+
+                const data = await response.json();
+                hideLoader();
+
+                const tableBody = document.getElementById("assignmentsTableBody");
+                tableBody.innerHTML = "";
+
+                data.forEach(item => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${item.teacher_name}</td>
+                        <td>${item.subject_name}</td>
+                        <td>${item.class_name}</td>
+                        <td>${item.school_name}</td>
+                        <td><input type="checkbox" value="${item.teacher_subject_id}" class="delete-checkbox"></td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                showAlert("Error fetching assignments.", "danger");
+                console.error(error);
+            }
+        }
+
+        function showLoader() {
+            document.getElementById("loader").style.display = "block";
+        }
+
+        function hideLoader() {
+            document.getElementById("loader").style.display = "none";
+        }
+
+        function showAlert(message, type) {
+            const alertBox = document.getElementById("alertBox");
+            alertBox.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => alertBox.innerHTML = "", 4000);
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            fetchTeachersDepartmentsClasses();
+            fetchTeacherAssignments();
+        });
+
+    </script>
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <h1 class="text-center">Teacher Assignment</h1>
+
+        <div id="alertBox"></div>
+
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <label for="teacherSelect" class="form-label">Select Teacher:</label>
+                <select id="teacherSelect" class="form-select"></select>
+            </div>
+
+            <div class="col-md-3">
+                <label for="departmentSelect" class="form-label">Select Department:</label>
+                <select id="departmentSelect" class="form-select" onchange="fetchSubjectsByDepartment()"></select>
+            </div>
+
+            <div class="col-md-3">
+                <label for="subjectSelect" class="form-label">Select Subject(s):</label>
+                <select id="subjectSelect" class="form-select" multiple></select>
+            </div>
+
+            <div class="col-md-3">
+                <label for="classSelect" class="form-label">Select Class:</label>
+                <select id="classSelect" class="form-select" multiple></select>
+            </div>
+
+            <div class="col-md-12 d-flex justify-content-center mt-3">
+                <button class="btn btn-primary" onclick="assignTeacherToSubjects()">Assign Teacher</button>
+            </div>
+        </div>
+
+        <h2 class="mt-5">Assigned Teachers</h2>
+
+        <table class="table table-bordered mt-3">
+            <thead class="table-dark">
+                <tr>
+                    <th>Teacher Name</th>
+                    <th>Subject Name</th>
+                    <th>Class Name</th>
+                    <th>School</th>
+                    <th>Delete</th>
+                </tr>
+            </thead>
+            <tbody id="assignmentsTableBody"></tbody>
+        </table>
+    </div>
+
+    <div id="loader" class="text-center mt-3" style="display:none;">
+        <div class="spinner-border text-primary"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class-Department Management</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="container mt-4">
+    <h2 class="text-center">Class-Department Management</h2>
+
+    <!-- Form for Adding Class to a Department -->
+    <form id="classDepartmentForm" class="mb-4">
+        <div class="row">
+            <div class="col-md-4">
+                <label for="classSelect" class="form-label">Select Class:</label>
+                <select id="classSelect" class="form-select" required></select>
+            </div>
+            <div class="col-md-4">
+                <label for="departmentSelect" class="form-label">Select Department:</label>
+                <select id="departmentSelect" class="form-select" required></select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary mt-4">Assign Class</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Table for displaying class-department assignments -->
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Class</th>
+                <th>Department</th>
+                <th>School</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="classDepartmentTableBody">
+            <!-- Data will be injected here -->
+        </tbody>
+    </table>
+
+    <script>
+        const API_BASE_URL = "http://127.0.0.1:8000/api/class_departments/";
+
+        // Fetch and populate classes & departments
+        async function fetchOptions() {
+            try {
+                const classResponse = await fetch("http://127.0.0.1:8000/api/classes/");
+                const departmentResponse = await fetch("http://127.0.0.1:8000/api/departments/");
+
+                const classes = await classResponse.json();
+                const departments = await departmentResponse.json();
+
+                const classSelect = document.getElementById("classSelect");
+                const departmentSelect = document.getElementById("departmentSelect");
+
+                classes.forEach(cls => {
+                    const option = document.createElement("option");
+                    option.value = cls.id;
+                    option.textContent = cls.arm_name;
+                    classSelect.appendChild(option);
+                });
+
+                departments.forEach(dep => {
+                    const option = document.createElement("option");
+                    option.value = dep.id;
+                    option.textContent = dep.name;
+                    departmentSelect.appendChild(option);
+                });
+
+            } catch (error) {
+                console.error("Error fetching classes or departments:", error);
+            }
+        }
+
+        // Fetch and display class-department mappings
+        async function fetchClassDepartments() {
+            try {
+                const response = await fetch(API_BASE_URL);
+                const data = await response.json();
+                const tableBody = document.getElementById("classDepartmentTableBody");
+                tableBody.innerHTML = "";
+
+                data.forEach(item => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${item.class_name}</td>
+                        <td>${item.department_name}</td>
+                        <td>${item.school_name}</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" onclick="deleteClassDepartment('${item.subject_class_id}')">Delete</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+            } catch (error) {
+                console.error("Error fetching class-department mappings:", error);
+            }
+        }
+
+        // Handle form submission for creating class-department assignment
+        document.getElementById("classDepartmentForm").addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const classId = document.getElementById("classSelect").value;
+            const departmentId = document.getElementById("departmentSelect").value;
+
+            const payload = {
+                classes: classId,
+                department: departmentId
+            };
+
+            try {
+                const response = await fetch(API_BASE_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    alert("Class successfully assigned to department!");
+                    fetchClassDepartments(); // Refresh the table
+                } else {
+                    const errorData = await response.json();
+                    console.error("Error:", errorData);
+                    alert("Failed to assign class.");
+                }
+            } catch (error) {
+                console.error("Error submitting form:", error);
+            }
+        });
+
+        // Function to delete a class-department assignment
+        async function deleteClassDepartment(subjectClassId) {
+            if (!confirm("Are you sure you want to delete this assignment?")) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}${subjectClassId}/`, {
+                    method: "DELETE"
+                });
+
+                if (response.ok) {
+                    alert("Assignment deleted successfully!");
+                    fetchClassDepartments();
+                } else {
+                    alert("Failed to delete assignment.");
+                }
+            } catch (error) {
+                console.error("Error deleting assignment:", error);
+            }
+        }
+
+        // Initial fetch calls
+        fetchOptions();
+        fetchClassDepartments();
+    </script>
+
+</body>
+</html>

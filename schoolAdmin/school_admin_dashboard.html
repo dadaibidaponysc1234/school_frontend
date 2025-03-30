@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="d-flex">
+            <nav class="bg-dark text-white p-3" style="width: 490px; min-height: 100vh;">
+                <h4>Dashboard</h4>
+                <div class="accordion" id="sidebarMenu">
+                    
+                    <!-- Configure School Setting -->
+                    <div class="accordion-item bg-dark">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button bg-dark text-white" data-bs-toggle="collapse" data-bs-target="#configureSchool">
+                                Configure School Setting
+                            </button>
+                        </h2>
+                        <div id="configureSchool" class="accordion-collapse collapse" data-bs-parent="#sidebarMenu">
+                            <div class="accordion-body">
+                                <a class="nav-link text-white" href="year.html">Years</a>
+                                <a class="nav-link text-white" href="#">Terms</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configure Class -->
+                    <div class="accordion-item bg-dark">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button bg-dark text-white" data-bs-toggle="collapse" data-bs-target="#configureClass">
+                                Configure Class
+                            </button>
+                        </h2>
+                        <div id="configureClass" class="accordion-collapse collapse" data-bs-parent="#sidebarMenu">
+                            <div class="accordion-body">
+                                <a class="nav-link text-white" href="#">Class Year</a>
+                                <a class="nav-link text-white" href="#">Class</a>
+                                <a class="nav-link text-white" href="#">Classroom</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Manage Users -->
+                    <div class="accordion-item bg-dark">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button bg-dark text-white" data-bs-toggle="collapse" data-bs-target="#manageUsers">
+                                Manage Users
+                            </button>
+                        </h2>
+                        <div id="manageUsers" class="accordion-collapse collapse" data-bs-parent="#sidebarMenu">
+                            <div class="accordion-body">
+                                <a class="nav-link text-white" href="#">Teachers</a>
+                                <a class="nav-link text-white" href="#">Students</a>
+                                <a class="nav-link text-white" href="#">Other Users</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Manage Subject -->
+                    <div class="accordion-item bg-dark">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button bg-dark text-white" data-bs-toggle="collapse" data-bs-target="#manageSubject">
+                                Manage Subject
+                            </button>
+                        </h2>
+                        <div id="manageSubject" class="accordion-collapse collapse" data-bs-parent="#sidebarMenu">
+                            <div class="accordion-body">
+                                <a class="nav-link text-white" href="#">Subject</a>
+                                <a class="nav-link text-white" href="#">Department</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assignments -->
+                    <div class="accordion-item bg-dark">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button bg-dark text-white" data-bs-toggle="collapse" data-bs-target="#assignments">
+                                Assignments
+                            </button>
+                        </h2>
+                        <div id="assignments" class="accordion-collapse collapse" data-bs-parent="#sidebarMenu">
+                            <div class="accordion-body">
+                                <a class="nav-link text-white" href="#">Assign Subject to Department</a>
+                                <a class="nav-link text-white" href="#">Assign Class to Department</a>
+                                <a class="nav-link text-white" href="#">Assign Class Teacher</a>
+                                <a class="nav-link text-white" href="#">Assign Teachers to Class</a>
+                                <a class="nav-link text-white" href="#">Assign Students to Class</a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </nav>
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+        <!-- Main Content -->
+        <div class="container p-4">
+            <h2>School Statistics</h2>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Teachers</h5>
+                            <p id="total-teachers" class="fs-4">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Students</h5>
+                            <p id="total-students" class="fs-4">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <canvas id="schoolChart" class="mt-4"></canvas>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+    const token = localStorage.getItem("accessToken");
+
+    console.log("Stored Token:", token); // ✅ Check if token is correctly stored
+
+    if (!token) {
+        console.error("No token found, redirecting to login.");
+        window.location.href = "/index.html"; // Redirect to login if no token
+        return;
+    }
+
+    fetch("http://127.0.0.1:8000/api/school_stats/", {
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+        }
+    })
+    .then(response => {
+        console.log("Response Status:", response.status); // ✅ Log response status
+        if (response.status === 401) {
+            console.error("Unauthorized - Token might be invalid or expired.");
+            localStorage.removeItem("accessToken"); // Remove invalid token
+            // window.location.href = "/index.html"; // Redirect to login
+            throw new Error("Unauthorized access");
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log("API Response Data:", data); // ✅ Log the API response
+        document.getElementById("total-teachers").innerText = data.teachers.total;
+        document.getElementById("total-students").innerText = data.students.total;
+
+        const ctx = document.getElementById("schoolChart").getContext("2d");
+        new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: ["Male Teachers", "Female Teachers", "Male Students", "Female Students"],
+                datasets: [{
+                    label: "Count",
+                    data: [data.teachers.male, data.teachers.female, data.students.male, data.students.female],
+                    backgroundColor: ["blue", "pink", "blue", "pink"]
+                }]
+            }
+        });
+    })
+    .catch(error => {
+        console.error("Error fetching data:", error);
+        document.getElementById("total-teachers").innerText = "Error";
+        document.getElementById("total-students").innerText = "Error";
+    });
+});
+
+    </script>
+</body>
+</html>

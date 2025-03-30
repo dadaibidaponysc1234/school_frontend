@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Year & Term Management</title>
+    <script defer src="script.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { display: flex; }
+        .sidebar { width: 200px; background: #333; color: white; padding: 20px; }
+        .content { flex-grow: 1; padding: 20px; }
+        .hidden { display: none; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table, th, td { border: 1px solid black; }
+        th, td { padding: 8px; text-align: left; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h4>Dashboard</h4>
+            <ul>
+                <li><a href="#" onclick="showTab('years')">Manage Years</a></li>
+                <li><a href="#" onclick="showTab('terms')">Manage Terms</a></li>
+            </ul>
+        </div>
+        <div class="content">
+            <div class="tab" id="years">
+                <h2>Manage Years</h2>
+                <table id="yearsTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="tab hidden" id="terms">
+                <h2>Manage Terms</h2>
+                <table id="termsTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const token = localStorage.getItem("accessToken");
+            const apiBaseUrl = "http://127.0.0.1:8000/api";
+            
+            if (!token) {
+                console.error("No token found, redirecting to login.");
+                window.location.href = "/index.html";
+                return;
+            }
+
+            function showTab(tabId) {
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.add('hidden'));
+                document.getElementById(tabId).classList.remove('hidden');
+            }
+
+            async function fetchData(endpoint, tableId) {
+                try {
+                    const response = await fetch(`${apiBaseUrl}/${endpoint}/`, {
+                        method: "GET",
+                        headers: {
+                            "Authorization": `Bearer ${token}`,
+                            "Content-Type": "application/json"
+                        }
+                    });
+                    
+                    if (!response.ok) throw new Error("Failed to fetch data");
+                    
+                    const data = await response.json();
+                    const tableBody = document.querySelector(`#${tableId} tbody`);
+                    tableBody.innerHTML = '';
+                    
+                    data.results.forEach(item => {
+                        tableBody.innerHTML += `<tr>
+                            <td>${item.name}</td>
+                            <td>${item.start_date}</td>
+                            <td>${item.end_date}</td>
+                            <td>${item.status ? 'Active' : 'Inactive'}</td>
+                            <td><button onclick="deleteItem('${endpoint}', '${item.id}')">Delete</button></td>
+                        </tr>`;
+                    });
+                } catch (error) {
+                    console.error("Error fetching data:", error);
+                }
+            }
+
+            async function deleteItem(endpoint, itemId) {
+                try {
+                    const response = await fetch(`${apiBaseUrl}/${endpoint}/${itemId}/`, {
+                        method: "DELETE",
+                        headers: {
+                            "Authorization": `Bearer ${token}`,
+                            "Content-Type": "application/json"
+                        }
+                    });
+                    
+                    if (!response.ok) throw new Error("Failed to delete item");
+                    fetchData(endpoint, endpoint === "years" ? "yearsTable" : "termsTable");
+                } catch (error) {
+                    console.error("Error deleting item:", error);
+                }
+            }
+
+            fetchData("years", "yearsTable");
+            fetchData("terms", "termsTable");
+        });
+    </script>
+</body>
+</html>
